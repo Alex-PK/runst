@@ -2,6 +2,11 @@
 name = "runst"
 version = "0.1.0"
 authors = ["Alessandro Pellizzari <alex@amiran.it>"]
+license = "GPL-2.0"
+description= "Compile and run rust \"shell scripts\" on the fly"
+readme = "README.md"
+categories = ["command-line-utilities", "text-processing"]
+keywords = ["cli", "on-the-fly", "script"]
 
 [dependencies]
 failure = "0.1"
