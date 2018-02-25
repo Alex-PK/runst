@@ -67,6 +67,7 @@ fn run(args: Vec<String>) -> Result<(), Error> {
         .spawn()?
         .wait()?;
 
+    fs::remove_file(target)?;
 
     Ok(())
 }
