@@ -1,0 +1,7 @@
+[package]
+name = "runst"
+version = "0.1.0"
+authors = ["Alessandro Pellizzari <alex@amiran.it>"]
+
+[dependencies]
+failure = "0.1"
