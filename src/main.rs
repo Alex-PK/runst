@@ -28,14 +28,14 @@ fn run(args: Vec<String>) -> Result<(), Error> {
     let mut source = String::with_capacity(metadata.len() as usize);
     BufReader::new(File::open(&args[0])?).read_to_string(&mut source)?;
 
-    let target = "/tmp/runsting";
+    let target = "/tmp/runstexe";
 
     // rustc --crate-name runst --crate-type bin --emit=link -C opt-level=3  --out-dir ./ -
     let mut cmd = Command::new("rustc")
         .stdin(Stdio::piped())
         .args(&[
             "--crate-name",
-            "runst",
+            "runstexe",
             "--crate-type",
             "bin",
             "--emit=link",
@@ -63,7 +63,10 @@ fn run(args: Vec<String>) -> Result<(), Error> {
     }
 
     Command::new(target)
-        .spawn()?;
+        .args(&args[1..])
+        .spawn()?
+        .wait()?;
+
 
     Ok(())
 }
