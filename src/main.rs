@@ -24,7 +24,7 @@ use std::process::{self, Command, Stdio};
 use std::io::prelude::*;
 use std::fs;
 
-use failure::Error;
+use failure::{Error, ResultExt};
 
 fn main() {
     let args = env::args().skip(1).collect::<Vec<String>>();
@@ -33,11 +33,23 @@ fn main() {
         process::exit(1);
     }
 
-    let _ = run(args);
+    let res = run(args);
+    match res {
+        Ok(code) => {
+            process::exit(code)
+        },
+        Err(e) => {
+            for c in e.causes() {
+                println!("{}", c);
+            }
+            println!("{}", e.backtrace());
+            process::exit(126);
+        }
+    }
 }
 
-fn run(args: Vec<String>) -> Result<(), Error> {
-    let metadata = fs::metadata(&args[0])?;
+fn run(args: Vec<String>) -> Result<i32, Error> {
+    let metadata = fs::metadata(&args[0]).context("Retrieving script metadata")?;
     if !metadata.file_type().is_file() {
         return Err(RuntimeError::NotRegular(args[0].to_string()).into());
     }
@@ -59,7 +71,8 @@ fn run(args: Vec<String>) -> Result<(), Error> {
             target,
             &args[0],
         ])
-        .spawn()?;
+        .spawn()
+        .context("Running rust compiler")?;
 
     let compiler_result = cmd.wait_with_output()?;
 
@@ -70,14 +83,16 @@ fn run(args: Vec<String>) -> Result<(), Error> {
         ).into());
     }
 
-    Command::new(target)
+    let exit_status = Command::new(target)
         .args(&args[1..])
-        .spawn()?
-        .wait()?;
+        .spawn().context("Launching script")?
+        .wait()
+        .context("Running script")?;
 
-    fs::remove_file(target)?;
+    fs::remove_file(target)
+        .context("Deleting executable")?;
 
-    Ok(())
+    Ok(exit_status.code().unwrap_or(0))
 }
 
 #[derive(Debug, Fail)]
