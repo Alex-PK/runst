@@ -22,8 +22,7 @@ extern crate failure;
 use std::env;
 use std::process::{self, Command, Stdio};
 use std::io::prelude::*;
-use std::io::{BufReader, BufWriter};
-use std::fs::{self, File};
+use std::fs;
 
 use failure::Error;
 
@@ -43,14 +42,11 @@ fn run(args: Vec<String>) -> Result<(), Error> {
         return Err(RuntimeError::NotRegular(args[0].to_string()).into());
     }
 
-    let mut source = String::with_capacity(metadata.len() as usize);
-    BufReader::new(File::open(&args[0])?).read_to_string(&mut source)?;
-
     let target = "/tmp/runstexe";
 
     // rustc --crate-name runst --crate-type bin --emit=link -C opt-level=3  --out-dir ./ -
-    let mut cmd = Command::new("rustc")
-        .stdin(Stdio::piped())
+    let cmd = Command::new("rustc")
+        .stdin(Stdio::null())
         .args(&[
             "--crate-name",
             "runstexe",
@@ -61,15 +57,9 @@ fn run(args: Vec<String>) -> Result<(), Error> {
             "opt-level=3",
             "-o",
             target,
-            "-",
+            &args[0],
         ])
         .spawn()?;
-
-    {
-        let mut writer = BufWriter::new(cmd.stdin.take().unwrap());
-        writer.write_all(source.as_bytes())?;
-    }
-
 
     let compiler_result = cmd.wait_with_output()?;
 
