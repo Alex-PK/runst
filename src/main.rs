@@ -18,13 +18,16 @@
 
 #[macro_use]
 extern crate failure;
+extern crate nix;
 
 use std::env;
 use std::process::{self, Command, Stdio};
-use std::io::prelude::*;
 use std::fs;
+use std::time;
 
 use failure::{Error, ResultExt};
+use nix::unistd::Uid;
+
 
 fn main() {
     let args = env::args().skip(1).collect::<Vec<String>>();
@@ -49,48 +52,60 @@ fn main() {
 }
 
 fn run(args: Vec<String>) -> Result<i32, Error> {
-    let metadata = fs::metadata(&args[0]).context("Retrieving script metadata")?;
-    if !metadata.file_type().is_file() {
+    let source = fs::canonicalize(&args[0]).context("Getting script path")?;
+
+    let source_metadata = fs::metadata(&source).context("Retrieving script metadata")?;
+    if !source_metadata.file_type().is_file() {
         return Err(RuntimeError::NotRegular(args[0].to_string()).into());
     }
 
-    let target = "/tmp/runstexe";
+    let source = source
+        .as_os_str()
+        .to_str()
+        .unwrap();
+    let uid = Uid::current();
 
-    // rustc --crate-name runst --crate-type bin --emit=link -C opt-level=3  --out-dir ./ -
-    let cmd = Command::new("rustc")
-        .stdin(Stdio::null())
-        .args(&[
-            "--crate-name",
-            "runstexe",
-            "--crate-type",
-            "bin",
-            "--emit=link",
-            "-C",
-            "opt-level=3",
-            "-o",
-            target,
-            &args[0],
-        ])
-        .spawn()
-        .context("Running rust compiler")?;
+    let target = format!("/tmp/runst-{}{}", uid, source.replace("/", "-"));
 
-    let compiler_result = cmd.wait_with_output()?;
+    let cached = fs::metadata(&target)
+        .map(|d|
+            d.modified().unwrap_or(time::UNIX_EPOCH) > source_metadata.modified().unwrap_or(time::UNIX_EPOCH)
+        ).unwrap_or(false);
 
-    if !compiler_result.status.success() {
-        return Err(RuntimeError::CompilerError(
-            compiler_result.status.code().unwrap_or(0),
-            String::from_utf8_lossy(&compiler_result.stderr).to_string(),
-        ).into());
+    if !cached {
+        // rustc --crate-name runst --crate-type bin --emit=link -C opt-level=3  --out-dir ./ -
+        let cmd = Command::new("rustc")
+            .stdin(Stdio::null())
+            .args(&[
+                "--crate-name",
+                "runstexe",
+                "--crate-type",
+                "bin",
+                "--emit=link",
+                "-C",
+                "opt-level=3",
+                "-o",
+                &target,
+                source,
+            ])
+            .spawn()
+            .context("Running rust compiler")?;
+
+        let compiler_result = cmd.wait_with_output()?;
+
+        if !compiler_result.status.success() {
+            return Err(RuntimeError::CompilerError(
+                compiler_result.status.code().unwrap_or(0),
+                String::from_utf8_lossy(&compiler_result.stderr).to_string(),
+            ).into());
+        }
     }
 
-    let exit_status = Command::new(target)
+    let exit_status = Command::new(&target)
         .args(&args[1..])
         .spawn().context("Launching script")?
         .wait()
         .context("Running script")?;
-
-    fs::remove_file(target)
-        .context("Deleting executable")?;
 
     Ok(exit_status.code().unwrap_or(0))
 }

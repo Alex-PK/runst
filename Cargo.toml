@@ -10,3 +10,4 @@ keywords = ["cli", "on-the-fly", "script"]
 
 [dependencies]
 failure = "0.1"
+nix = "0.10"
