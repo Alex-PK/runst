@@ -58,10 +58,7 @@ This software is **HIGHLY EXPERIMENTAL**. And a quick hack put together on a laz
 
 - You must have rust installed and executable from your shell executable path.
 - You cannot use external crates (it's calling rustc directly. No cargo). Only `std` and `core`.
-- The executable destination is hardcoded (`/tmp/runstexe`). This will be improved in some later version.
-- Because of that, it's dangerous to call it in parallel.
 - It's only been tested on Linux (Ubuntu 17.10 to be precise).
-- Errors are basically ingored, at this point.
 - Yes, it's GPL. I want it to remain open source. But if you don't redistribute modified versions you can do nearly whatever you want.
 - It could eat your hamster, your gopher, your python and most of your jewellery.
 - Use at your own risk.
