@@ -65,9 +65,14 @@ fn run(args: Vec<String>) -> Result<i32, Error> {
         .unwrap();
     let uid = Uid::current();
 
-    let target = format!("/tmp/runst-{}{}", uid, source.replace("/", "-"));
+    let target = env::temp_dir()
+        .join(&format!("runst-{}{}", uid, source.replace("/", "-")));
+    let target = target
+        .as_os_str()
+        .to_str()
+        .unwrap();
 
-    let cached = fs::metadata(&target)
+    let cached = fs::metadata(target)
         .map(|d|
             d.modified().unwrap_or(time::UNIX_EPOCH) > source_metadata.modified().unwrap_or(time::UNIX_EPOCH)
         ).unwrap_or(false);
@@ -85,7 +90,7 @@ fn run(args: Vec<String>) -> Result<i32, Error> {
                 "-C",
                 "opt-level=3",
                 "-o",
-                &target,
+                target,
                 source,
             ])
             .spawn()
